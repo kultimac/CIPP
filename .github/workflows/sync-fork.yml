@@ -1,0 +1,58 @@
+name: Sync Fork
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # This will run the action every day at midnight. Adjust the schedule as needed.
+  workflow_dispatch:  # This allows you to manually trigger the workflow from the Actions tab.
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+    - name: Add upstream remote
+      run: |
+        git remote add upstream https://github.com/KelvinTegelaar/CIPP.git
+        git fetch upstream
+      env:
+        GH_PAT: ${{ secrets.GH_PAT }}
+
+    - name: Stash workflow file if it exists
+      run: |
+        if [ -f .github/workflows/sync-fork.yml ]; then
+          git stash push -m "stash workflow files" .github/workflows/sync-fork.yml
+        fi
+
+    - name: Checkout main branch
+      run: git checkout main
+
+    - name: Pull and rebase main branch
+      run: |
+        git pull --rebase upstream main || (
+          git rebase --abort &&
+          git pull --rebase -s recursive -X ours upstream main
+        )
+
+    - name: Apply stashed workflow file if it exists
+      run: |
+        if git stash list | grep -q "stash workflow files"; then
+          git stash apply "stash@{0}"
+        fi
+
+    - name: Commit and push changes if workflow file exists
+      run: |
+        if git stash list | grep -q "stash workflow files"; then
+          git add .github/workflows/sync-fork.yml
+          git commit -m "Retain sync-fork.yml"
+        fi
+        git push --force-with-lease origin main
+      env:
+        GH_PAT: ${{ secrets.GH_PAT }}
