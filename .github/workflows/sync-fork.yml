@@ -5,6 +5,10 @@ on:
     - cron: '0 0 * * *'  # This will run the action every day at midnight. Adjust the schedule as needed.
   workflow_dispatch:  # This allows you to manually trigger the workflow from the Actions tab.
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -12,6 +16,8 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GH_PAT }}
 
     - name: Set up Git
       run: |
@@ -22,17 +28,10 @@ jobs:
       run: |
         git remote add upstream https://github.com/KelvinTegelaar/CIPP.git
         git fetch upstream
-      env:
-        GH_PAT: ${{ secrets.GH_PAT }}
 
-    - name: Stash workflow file if it exists
+    - name: Create new branch
       run: |
-        if [ -f .github/workflows/sync-fork.yml ]; then
-          git stash push -m "stash workflow files" .github/workflows/sync-fork.yml
-        fi
-
-    - name: Checkout main branch
-      run: git checkout main
+        git checkout -b sync-upstream
 
     - name: Pull and rebase main branch
       run: |
@@ -41,18 +40,35 @@ jobs:
           git pull --rebase -s recursive -X ours upstream main
         )
 
-    - name: Apply stashed workflow file if it exists
+    - name: Push changes to new branch
       run: |
-        if git stash list | grep -q "stash workflow files"; then
-          git stash apply "stash@{0}"
-        fi
-
-    - name: Commit and push changes if workflow file exists
-      run: |
-        if git stash list | grep -q "stash workflow files"; then
-          git add .github/workflows/sync-fork.yml
-          git commit -m "Retain sync-fork.yml"
-        fi
-        git push --force-with-lease origin main
+        git push origin sync-upstream --force
       env:
         GH_PAT: ${{ secrets.GH_PAT }}
+
+    - name: Create Pull Request
+      id: create_pr
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GH_PAT }}
+        commit-message: Sync with upstream
+        branch: sync-upstream
+        base: main
+        title: 'Sync with upstream'
+        body: 'This PR merges changes from the upstream repository into the forked repository.'
+        labels: 'sync'
+
+    - name: Merge Pull Request
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GH_PAT }}
+        script: |
+          const prNumber = ${{ steps.create_pr.outputs.pull_request_number }};
+          if (prNumber) {
+            await github.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              merge_method: 'squash',
+            });
+          }
