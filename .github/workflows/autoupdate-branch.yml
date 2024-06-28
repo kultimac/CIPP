@@ -1,0 +1,30 @@
+name: Update Test Branch
+
+on:
+  push:
+    branches: [main]
+    
+permissions: write-all
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git User
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Update Test Branch
+        run: |
+          git checkout main
+          git fetch origin
+          git checkout test
+          git pull
+          git merge origin/main
+          git push origin test
