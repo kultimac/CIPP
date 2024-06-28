@@ -12,7 +12,7 @@ jobs:
       - uses: Shurtu-gal/autoupdate-fork-action@v1.0.1
         with:
           github_token: ${{ secrets.GH_PAT }}
-          pr_filter: labelled
+          pr_filter: all
           pr_label: fork-update
           # Only update PRs on master branch
-          base_branch: main
+          base_branch: base_branches
