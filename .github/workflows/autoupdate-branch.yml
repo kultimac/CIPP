@@ -29,7 +29,7 @@ jobs:
           github-token: ${{ secrets.GH_PAT }}
           script: |
             const prNumber = process.env.pr_number;
-            const { context, getOctokit } = require('@actions/github');
+            const { getOctokit } = require('@actions/github');
             const octokit = getOctokit(process.env.GITHUB_TOKEN);
             
             if (prNumber) {
@@ -57,7 +57,7 @@ jobs:
           github-token: ${{ secrets.GH_PAT }}
           script: |
             const prNumber = process.env.pr_number;
-            const { context, getOctokit } = require('@actions/github');
+            const { getOctokit } = require('@actions/github');
             const octokit = getOctokit(process.env.GITHUB_TOKEN);
 
             if (prNumber) {
