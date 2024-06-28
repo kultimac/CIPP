@@ -1,72 +1,18 @@
-name: Update Test Branch
-
+name: Update Fork
 on:
   schedule:
-    - cron: '0 0 * * *'  # This will run the action every day at midnight. Adjust the schedule as needed.
+    # Runs at 12:00am UTC every day
+    - cron: '0 0 * * *'
   workflow_dispatch:  # This allows you to manually trigger the workflow from the Actions tab.
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
-  update_and_merge:
+  update-fork:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - uses: Shurtu-gal/autoupdate-fork-action@v1
         with:
-          token: ${{ secrets.GH_PAT }}
-
-      - name: Get Pull Request Number
-        id: get_pr
-        run: echo "pr_number=$(jq -r '.number' <<< '${{ toJson(github.event.pull_request) }}')" >> $GITHUB_ENV
-
-      - name: Update branch
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GH_PAT }}
-          script: |
-            const prNumber = process.env.pr_number;
-            const { getOctokit } = require('@actions/github');
-            const octokit = getOctokit(process.env.GITHUB_TOKEN);
-            
-            if (prNumber) {
-              const pr = await octokit.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber,
-              });
-              
-              const baseBranch = pr.data.base.ref;
-              const headBranch = pr.data.head.ref;
-              
-              await octokit.repos.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                base: headBranch,
-                head: baseBranch,
-              });
-            }
-
-      - name: Merge Pull Request
-        if: ${{ env.pr_number }}
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GH_PAT }}
-          script: |
-            const prNumber = process.env.pr_number;
-            const { getOctokit } = require('@actions/github');
-            const octokit = getOctokit(process.env.GITHUB_TOKEN);
-
-            if (prNumber) {
-              await octokit.pulls.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber,
-                merge_method: 'squash'
-              });
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          github_token: ${{ secrets.GH_PAT }}
+          pr_filter: labelled
+          pr_label: fork-update
+          # Only update PRs on master branch
+          base_branch: main
