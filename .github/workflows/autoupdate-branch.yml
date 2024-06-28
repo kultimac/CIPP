@@ -21,48 +21,52 @@ jobs:
 
       - name: Get Pull Request Number
         id: get_pr
-        run: echo "::set-output name=pr_number::${{ github.event.pull_request.number }}"
+        run: echo "pr_number=$(jq -r '.number' <<< '${{ toJson(github.event.pull_request) }}')" >> $GITHUB_ENV
 
       - name: Update branch
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GH_PAT }}
           script: |
-            const prNumber = ${{ steps.get_pr.outputs.pr_number }};
+            const prNumber = process.env.pr_number;
             const { context, getOctokit } = require('@actions/github');
             const octokit = getOctokit(process.env.GITHUB_TOKEN);
             
-            const pr = await octokit.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-            });
-            
-            const baseBranch = pr.data.base.ref;
-            const headBranch = pr.data.head.ref;
-            
-            await octokit.repos.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              base: headBranch,
-              head: baseBranch,
-            });
+            if (prNumber) {
+              const pr = await octokit.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+              
+              const baseBranch = pr.data.base.ref;
+              const headBranch = pr.data.head.ref;
+              
+              await octokit.repos.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                base: headBranch,
+                head: baseBranch,
+              });
+            }
 
       - name: Merge Pull Request
-        if: ${{ steps.get_pr.outputs.pr_number }}
+        if: ${{ env.pr_number }}
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GH_PAT }}
           script: |
-            const prNumber = ${{ steps.get_pr.outputs.pr_number }};
+            const prNumber = process.env.pr_number;
             const { context, getOctokit } = require('@actions/github');
             const octokit = getOctokit(process.env.GITHUB_TOKEN);
 
-            await octokit.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              merge_method: 'squash'
-            });
+            if (prNumber) {
+              await octokit.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                merge_method: 'squash'
+              });
+            }
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
