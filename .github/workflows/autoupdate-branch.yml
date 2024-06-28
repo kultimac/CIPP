@@ -15,4 +15,4 @@ jobs:
           pr_filter: all
           pr_label: fork-update
           # Only update PRs on master branch
-          base_branch: base_branches
+          base_branches: main
